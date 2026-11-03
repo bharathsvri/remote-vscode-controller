@@ -18,6 +18,8 @@ import { SignalingHandler } from '../signaling/signaling-handler';
 export class SignalingWsServer {
   private wss: WebSocketServer;
   private clientRoles = new Map<WebSocket, { deviceId?: string; role: 'provider' | 'controller' }>();
+  private sessionControllerSockets = new Map<string, WebSocket>();
+  private pendingRequestSockets = new Map<string, WebSocket>();
 
   constructor(server: HttpServer) {
     this.wss = new WebSocketServer({ server, path: '/ws' });
@@ -41,6 +43,16 @@ export class SignalingWsServer {
           this.broadcastDeviceUpdate();
         }
         this.clientRoles.delete(ws);
+        for (const [sId, sWs] of this.sessionControllerSockets.entries()) {
+          if (sWs === ws) {
+            this.sessionControllerSockets.delete(sId);
+          }
+        }
+        for (const [rId, rWs] of this.pendingRequestSockets.entries()) {
+          if (rWs === ws) {
+            this.pendingRequestSockets.delete(rId);
+          }
+        }
       });
 
       ws.on('message', (data: Buffer | string) => {
@@ -97,6 +109,7 @@ export class SignalingWsServer {
         }
 
         const device = deviceRegistry.getDevice(req.targetDeviceId);
+        this.clientRoles.set(ws, { deviceId: req.controllerId, role: 'controller' });
         const authToken = AuthService.generateSessionToken(req.controllerId, req.targetDeviceId, 'paired');
         ws.send(JSON.stringify(createEnvelope(MESSAGE_TYPES.DEVICE_PAIR_RESPONSE, {
           success: true,
@@ -121,6 +134,9 @@ export class SignalingWsServer {
         }
 
         const pending = sessionManager.createApprovalRequest(env.payload);
+        this.clientRoles.set(ws, { deviceId: pending.controllerDeviceId, role: 'controller' });
+        this.sessionControllerSockets.set(pending.sessionId, ws);
+
         // Relay approval request directly to Provider Agent
         providerWs.send(JSON.stringify(createEnvelope(
           MESSAGE_TYPES.SESSION_APPROVAL_PENDING,
@@ -150,7 +166,7 @@ export class SignalingWsServer {
         const sessionInfo = sessionManager.handleApprovalDecision(decision, providerDevice?.name || 'Provider');
 
         // Relay decision to Controller
-        const controllerWs = this.findSocketByDeviceId(pending.controllerDeviceId);
+        const controllerWs = this.sessionControllerSockets.get(decision.sessionId) || this.findSocketByDeviceId(pending.controllerDeviceId);
         if (controllerWs && controllerWs.readyState === WebSocket.OPEN) {
           controllerWs.send(JSON.stringify(createEnvelope(
             MESSAGE_TYPES.SESSION_APPROVAL_DECISION,
@@ -158,6 +174,7 @@ export class SignalingWsServer {
             { sessionId: decision.sessionId }
           )));
         }
+        this.sessionControllerSockets.delete(decision.sessionId);
 
         if (sessionInfo) {
           deviceRegistry.updateStatus(sessionInfo.providerId || env.senderId || '', 'Session Active');
@@ -196,11 +213,48 @@ export class SignalingWsServer {
       }
 
       default: {
-        // Forward message to target device if targetId is specified
+        // 1. Check if this is a response to a pending request (matching envelope id)
+        if (env.id && this.pendingRequestSockets.has(env.id)) {
+          const callerWs = this.pendingRequestSockets.get(env.id);
+          this.pendingRequestSockets.delete(env.id);
+          if (callerWs && callerWs.readyState === WebSocket.OPEN) {
+            callerWs.send(JSON.stringify(env));
+            return;
+          }
+        }
+
+        // 2. Forward to target device if targetId is specified
         if (env.targetId) {
-          const targetWs = deviceRegistry.getDeviceSocket(env.targetId);
+          const targetWs = deviceRegistry.getDeviceSocket(env.targetId) || this.findSocketByDeviceId(env.targetId);
           if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            if (env.id) {
+              this.pendingRequestSockets.set(env.id, ws);
+            }
             targetWs.send(JSON.stringify(env));
+            return;
+          }
+        }
+
+        // 3. Forward by session if sessionId is present (e.g. terminal streaming, events)
+        if (env.sessionId) {
+          const session = sessionManager.getSession(env.sessionId);
+          const clientRole = this.clientRoles.get(ws);
+
+          if (clientRole?.role === 'provider') {
+            const controllerWs = this.sessionControllerSockets.get(env.sessionId)
+              || (session ? this.findSocketByDeviceId(session.controllerId) : undefined);
+            if (controllerWs && controllerWs.readyState === WebSocket.OPEN) {
+              controllerWs.send(JSON.stringify(env));
+              return;
+            }
+          } else {
+            if (session) {
+              const providerWs = deviceRegistry.getDeviceSocket(session.providerId);
+              if (providerWs && providerWs.readyState === WebSocket.OPEN) {
+                providerWs.send(JSON.stringify(env));
+                return;
+              }
+            }
           }
         }
         break;

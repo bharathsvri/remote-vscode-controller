@@ -120,7 +120,17 @@ export class VSCodeProcessManager {
     await this.waitForPort(port, 15000);
 
     const reachableHost = DeviceInfoService.getReachableHost();
-    const webUrl = `http://${reachableHost}:${port}/?folder=${encodeURIComponent(workspacePath)}`;
+
+    // Normalize workspace path for VS Code Web URL (forward slashes and leading slash for Windows drive letters)
+    // e.g. "D:\Work\Repositories" -> "/D:/Work/Repositories"
+    // Without the leading slash, VS Code's browser URI parser treats "D:" as a protocol scheme (like 'http:'),
+    // which causes the error: "unable to resolve filesystem provider with relative file path"
+    let normalizedFolder = workspacePath.replace(/\\/g, '/').replace(/\/+$/, '');
+    if (!normalizedFolder.startsWith('/')) {
+      normalizedFolder = '/' + normalizedFolder;
+    }
+
+    const webUrl = `http://${reachableHost}:${port}/?folder=${encodeURIComponent(normalizedFolder)}`;
 
     const instance: LaunchedVSCodeInstance = {
       sessionId,
