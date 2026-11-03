@@ -1,12 +1,24 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import os from 'os';
+import { exec } from 'child_process';
 import { DEFAULT_PORTS } from '@remote-vscode/shared';
 import { ProviderAgent } from './agent/provider-agent';
 
 dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const killOrphanedServers = () => {
+  if (process.platform === 'win32') {
+    try {
+      exec('taskkill /F /IM code-tunnel.exe', () => {});
+    } catch {}
+  }
+};
+
+// Clean up any stale VS Code server daemons
+killOrphanedServers();
 
 const SIGNALING_URL = process.env.PROVIDER_SIGNALING_URL || `ws://localhost:${DEFAULT_PORTS.SIGNALING_SERVER}/ws`;
 const PORT = parseInt(process.env.PROVIDER_PORT || '', 10) || DEFAULT_PORTS.PROVIDER_AGENT;
@@ -40,6 +52,7 @@ agent.start().catch((err) => {
 // Handle graceful termination
 const cleanup = async () => {
   console.log('\n[ProviderAgent] Shutting down Provider Agent...');
+  killOrphanedServers();
   process.exit(0);
 };
 

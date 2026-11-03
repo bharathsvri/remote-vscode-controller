@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   Maximize2,
   Tv,
+  ExternalLink,
 } from 'lucide-react';
 
 interface RemoteWorkspaceProps {
@@ -97,6 +98,23 @@ export const RemoteWorkspace: React.FC<RemoteWorkspaceProps> = ({
 
         {/* Right Action Buttons */}
         <div className="flex items-center space-x-2">
+          {session.webUrl && (
+            <button
+              onClick={() => {
+                if ((window as any).electronAPI?.openExternal) {
+                  (window as any).electronAPI.openExternal(session.webUrl);
+                } else {
+                  window.open(session.webUrl, '_blank');
+                }
+              }}
+              title="Open VS Code in External Browser (Edge/Chrome)"
+              className="flex items-center space-x-1.5 px-2.5 py-1 bg-[#2d3748] hover:bg-[#4a5568] border border-blue-500/30 rounded text-blue-200"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">Open in Browser</span>
+            </button>
+          )}
+
           <button
             onClick={() => setSidePanelOpen(!sidePanelOpen)}
             title={sidePanelOpen ? 'Collapse Tools Panel' : 'Expand Tools Panel'}

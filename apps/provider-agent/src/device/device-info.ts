@@ -28,6 +28,40 @@ export class DeviceInfoService {
     return this.cachedId;
   }
 
+  /**
+   * Resolves the primary reachable IP or host of the provider machine
+   * so other systems on the network can access services.
+   */
+  public static getReachableHost(): string {
+    if (process.env.PROVIDER_HOST) {
+      return process.env.PROVIDER_HOST;
+    }
+
+    const nets = os.networkInterfaces();
+    // 1. Prefer physical LAN/Wi-Fi adapters over virtual switches
+    for (const name of Object.keys(nets)) {
+      const isVirtual = /vethernet|hyper-v|wsl|docker|virtual|vmware|vbox/i.test(name);
+      if (isVirtual) continue;
+
+      for (const net of nets[name] || []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          return net.address;
+        }
+      }
+    }
+
+    // 2. Fallback to any active non-internal IPv4
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] || []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          return net.address;
+        }
+      }
+    }
+
+    return '127.0.0.1';
+  }
+
   public static detectVSCode(): { installed: boolean; version?: string; executablePath?: string } {
     // 1. Try `code --version` in PATH
     try {

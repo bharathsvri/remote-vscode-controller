@@ -68,18 +68,22 @@ export class VSCodeProcessManager {
     const cleanUserData = context.userDataDir.replace(/[/\\]+$/, '');
     const quoteIfSpaces = (p: string) => p.includes(' ') ? `"${p}"` : p;
 
+    const bindHost = process.env.PROVIDER_BIND_HOST || '0.0.0.0';
+
+    // Run without connection token so page reloads and multiple tabs
+    // connect seamlessly without "Unauthorized client refused" token mismatch errors
     const args = [
       'serve-web',
-      '--host', '127.0.0.1',
+      '--host', bindHost,
       '--port', port.toString(),
-      '--connection-token', connectionToken,
+      '--without-connection-token',
       '--server-data-dir', quoteIfSpaces(cleanUserData),
       '--default-folder', quoteIfSpaces(cleanWorkspace),
       '--accept-server-license-terms',
       '--disable-telemetry',
     ];
 
-    console.log(`[VSCodeManager] Spawning isolated VS Code instance on port ${port}...`);
+    console.log(`[VSCodeManager] Spawning dedicated VS Code instance on port ${port} (bound to ${bindHost})...`);
     console.log(`[VSCodeManager] Command: ${vscodeInfo.executablePath} ${args.join(' ')}`);
 
     const child = spawn(vscodeInfo.executablePath, args, {
@@ -115,20 +119,22 @@ export class VSCodeProcessManager {
     // Wait until server is listening or 15 seconds timeout
     await this.waitForPort(port, 15000);
 
-    const webUrl = `http://127.0.0.1:${port}/?tkn=${connectionToken}&folder=${encodeURIComponent(workspacePath)}`;
+    const reachableHost = DeviceInfoService.getReachableHost();
+    const webUrl = `http://${reachableHost}:${port}/?folder=${encodeURIComponent(workspacePath)}`;
 
     const instance: LaunchedVSCodeInstance = {
       sessionId,
       process: child,
       port,
-      connectionToken,
+      connectionToken: '',
       webUrl,
       context,
       startedAt: Date.now(),
     };
 
     this.instances.set(sessionId, instance);
-    console.log(`[VSCodeManager] Isolated VS Code successfully launched: ${webUrl}`);
+    console.log(`[VSCodeManager] Remote VS Code successfully launched: ${webUrl}`);
+    console.log(`[VSCodeManager] Accessible locally and from another system via: http://${reachableHost}:${port}`);
     return instance;
   }
 
