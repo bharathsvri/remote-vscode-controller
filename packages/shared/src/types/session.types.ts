@@ -46,6 +46,8 @@ export interface SessionApprovalDecision {
   grantedPermissions?: SessionPermissions;
   connectionToken?: string;
   webUrl?: string;
+  streamUrl?: string;
+  inputUrl?: string;
   wsUrl?: string;
   isolationMode: 'DedicatedServerWeb' | 'DedicatedProcess' | 'VirtualDesktop';
 }
@@ -64,6 +66,8 @@ export interface ActiveSessionInfo {
   status: SessionState;
   grantedPermissions: SessionPermissions;
   webUrl?: string;
+  streamUrl?: string;
+  inputUrl?: string;
 }
 
 export interface SessionAuditLog {

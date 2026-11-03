@@ -13,6 +13,7 @@ const killOrphanedServers = () => {
   if (process.platform === 'win32') {
     try {
       exec('taskkill /F /IM code-tunnel.exe /T', () => {});
+      exec('taskkill /F /IM desktop-streamer.exe /T', () => {});
       exec('powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like \'*remote-vscode*\' } | Invoke-CimMethod -MethodName Terminate"', () => {});
     } catch {}
   }

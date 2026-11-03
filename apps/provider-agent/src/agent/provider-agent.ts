@@ -14,6 +14,7 @@ import {
 } from '@remote-vscode/shared';
 import { DeviceInfoService } from '../device/device-info';
 import { vscodeProcessManager } from '../vscode/vscode-manager';
+import { desktopStreamerManager } from '../streaming/desktop-streamer-manager';
 import { terminalManager } from '../terminal/terminal-manager';
 import { fileSystemManager } from '../filesystem/filesystem-manager';
 import { permissionManager } from '../security/permission-manager';
@@ -158,6 +159,16 @@ export class ProviderAgent {
 
             decision.connectionToken = instance.connectionToken;
             decision.webUrl = instance.webUrl;
+
+            // Start AnyDesk-style native desktop streamer
+            try {
+              const streamer = await desktopStreamerManager.startStreamer();
+              decision.streamUrl = streamer.streamUrl;
+              decision.inputUrl = streamer.inputUrl;
+            } catch (sErr: any) {
+              console.warn('[ProviderAgent] Native streamer start warning:', sErr.message);
+            }
+
             this.activeSessions.set(approvalReq.sessionId, {
               workspace,
               port: instance.port,
@@ -186,6 +197,7 @@ export class ProviderAgent {
         const { sessionId } = env.payload || {};
         if (sessionId) {
           console.log(`[ProviderAgent] Terminating session ${sessionId}`);
+          desktopStreamerManager.stopStreamer();
           await vscodeProcessManager.stopSession(sessionId);
           terminalManager.closeAllForSession(sessionId);
           this.activeSessions.delete(sessionId);

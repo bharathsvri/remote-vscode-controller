@@ -25,6 +25,8 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ devices, online, onConnect, onRefresh }) => {
   const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | null>(null);
   const [targetWorkspace, setTargetWorkspace] = useState('');
+  const [serverModalOpen, setServerModalOpen] = useState(false);
+  const [serverUrl, setServerUrl] = useState(signalingClient.getUrl());
   const [pairingModalOpen, setPairingModalOpen] = useState(false);
   const [pairingCode, setPairingCode] = useState('');
   const [pairingDeviceId, setPairingDeviceId] = useState('');
@@ -77,10 +79,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ devices, online, onConnect
         </div>
 
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-[#181818] border border-[#333] text-xs">
+          <button
+            onClick={() => {
+              setServerUrl(signalingClient.getUrl());
+              setServerModalOpen(true);
+            }}
+            title="Configure Signaling Server Host"
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-[#181818] hover:bg-[#222] border border-[#333] text-xs cursor-pointer transition"
+          >
             <span className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="text-gray-300">{online ? 'Signaling Online' : 'Signaling Offline'}</span>
-          </div>
+            <Sliders className="w-3 h-3 text-gray-400 ml-1" />
+          </button>
 
           <button
             onClick={() => setPairingModalOpen(true)}
@@ -331,6 +341,62 @@ export const Dashboard: React.FC<DashboardProps> = ({ devices, online, onConnect
                 className="px-5 py-2 bg-[#007acc] hover:bg-[#0062a3] text-white font-medium rounded"
               >
                 Verify & Pair
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Signaling Server Host Modal */}
+      {serverModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              let target = serverUrl.trim();
+              if (!target.startsWith('ws://') && !target.startsWith('wss://')) {
+                target = `ws://${target}:4000/ws`;
+              }
+              signalingClient.reconnect(target);
+              setServerModalOpen(false);
+              setTimeout(() => onRefresh(), 500);
+            }}
+            className="bg-[#252526] border border-[#3c3c3c] rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center space-x-3 text-white border-b border-[#333] pb-3">
+              <Server className="w-5 h-5 text-blue-400" />
+              <h3 className="font-semibold text-sm">Configure Signaling Server</h3>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              When connecting from another system on the local network, enter the IP address of the Host machine (e.g. <span className="font-mono text-blue-300">192.168.1.254</span> or <span className="font-mono text-blue-300">ws://192.168.1.254:4000/ws</span>).
+            </p>
+
+            <div>
+              <label className="block text-xs text-gray-300 mb-1 font-medium">Signaling Server URL / IP:</label>
+              <input
+                type="text"
+                placeholder="ws://192.168.1.254:4000/ws"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                className="w-full px-3 py-2 bg-[#181818] border border-[#3c3c3c] rounded text-white font-mono text-xs focus:outline-none focus:border-[#007acc]"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 text-xs pt-2">
+              <button
+                type="button"
+                onClick={() => setServerModalOpen(false)}
+                className="px-4 py-2 bg-[#333] hover:bg-[#444] text-gray-300 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-[#007acc] hover:bg-[#0062a3] text-white font-medium rounded shadow"
+              >
+                Connect
               </button>
             </div>
           </form>

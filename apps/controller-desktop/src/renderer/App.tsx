@@ -19,8 +19,8 @@ export const App: React.FC = () => {
   useEffect(() => {
     // Get custom signaling URL from Electron main process if available
     window.electronAPI?.getSignalingUrl?.().then((url) => {
-      // Connect signaling client
-      signalingClient.connect();
+      // Connect signaling client with configured URL
+      signalingClient.connect(url);
     }).catch(() => {
       signalingClient.connect();
     });

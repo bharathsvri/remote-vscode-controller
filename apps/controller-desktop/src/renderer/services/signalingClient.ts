@@ -33,7 +33,25 @@ export class SignalingClient {
     this.onStatusChange = cb;
   }
 
-  public connect(): void {
+  public getUrl(): string {
+    return this.url;
+  }
+
+  public reconnect(customUrl?: string): void {
+    if (customUrl) {
+      this.url = customUrl;
+    }
+    if (this.ws) {
+      try { this.ws.close(); } catch {}
+      this.ws = null;
+    }
+    this.connect();
+  }
+
+  public connect(customUrl?: string): void {
+    if (customUrl) {
+      this.url = customUrl;
+    }
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }

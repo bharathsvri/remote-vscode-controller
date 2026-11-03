@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ActiveSessionInfo, DeviceInfo } from '@remote-vscode/shared';
 import { TerminalView } from '../components/TerminalView';
 import { FileManager } from '../components/FileManager';
+import { AnyDeskView } from '../components/AnyDeskView';
 import {
   Code,
   FolderOpen,
@@ -15,6 +16,7 @@ import {
   Maximize2,
   Tv,
   ExternalLink,
+  Monitor,
 } from 'lucide-react';
 
 interface RemoteWorkspaceProps {
@@ -34,7 +36,8 @@ export const RemoteWorkspace: React.FC<RemoteWorkspaceProps> = ({
   const [duration, setDuration] = useState('00:00:00');
   const [quality, setQuality] = useState<'low' | 'medium' | 'high' | 'ultra'>('high');
   const [sidePanelTab, setSidePanelTab] = useState<'files' | 'terminal' | 'diagnostics'>('files');
-  const [sidePanelOpen, setSidePanelOpen] = useState(true);
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'anydesk' | 'web'>(session.streamUrl ? 'anydesk' : 'web');
 
   useEffect(() => {
     const start = session.startTime || Date.now();
@@ -74,25 +77,38 @@ export const RemoteWorkspace: React.FC<RemoteWorkspaceProps> = ({
           </div>
         </div>
 
-        {/* Center: Quality and Workspace Tag */}
+        {/* Center: Mode Switcher (AnyDesk Screen vs Web VS Code) & Workspace Info */}
         <div className="hidden md:flex items-center space-x-3">
+          {session.streamUrl && (
+            <div className="flex items-center p-0.5 rounded-md bg-[#18181b] border border-[#3e3e42]">
+              <button
+                onClick={() => setViewMode('anydesk')}
+                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${
+                  viewMode === 'anydesk'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>AnyDesk Screen</span>
+              </button>
+              <button
+                onClick={() => setViewMode('web')}
+                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${
+                  viewMode === 'web'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <Code className="w-3.5 h-3.5" />
+                <span>Web VS Code</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center space-x-1.5 px-2.5 py-0.5 rounded bg-[#181818] border border-[#333] text-[11px]">
             <FolderOpen className="w-3.5 h-3.5 text-yellow-500" />
             <span className="font-mono text-gray-300 truncate max-w-xs">{session.workspacePath}</span>
-          </div>
-
-          <div className="flex items-center space-x-1 text-[11px]">
-            <Tv className="w-3.5 h-3.5 text-gray-400" />
-            <select
-              value={quality}
-              onChange={(e) => setQuality(e.target.value as any)}
-              className="bg-[#181818] border border-[#3c3c3c] rounded px-1.5 py-0.5 text-gray-200 focus:outline-none"
-            >
-              <option value="low">Quality: Low (15fps)</option>
-              <option value="medium">Quality: Medium (30fps)</option>
-              <option value="high">Quality: High (60fps)</option>
-              <option value="ultra">Quality: Ultra (HD)</option>
-            </select>
           </div>
         </div>
 
@@ -146,26 +162,30 @@ export const RemoteWorkspace: React.FC<RemoteWorkspaceProps> = ({
 
       {/* Main Workspace Area + Side Tools Panel */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Isolated VS Code Workspace Frame */}
-        <div className="flex-1 flex flex-col bg-[#181818] relative">
-          {session.webUrl ? (
-            <iframe
-              src={session.webUrl}
-              className="w-full h-full border-none"
-              title="Remote Isolated VS Code"
-              allow="clipboard-read; clipboard-write;"
-            />
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center space-y-4 p-8 text-center">
-              <Code className="w-16 h-16 text-blue-500 opacity-60 animate-pulse" />
-              <h2 className="text-lg font-bold text-gray-200">Isolated VS Code Workspace Ready</h2>
-              <p className="text-xs text-gray-400 max-w-md">
-                Dedicated VS Code instance is actively running on {device.name} in complete isolation.
-                Provider desktop mouse and keyboard are untouched.
-              </p>
-            </div>
-          )}
-        </div>
+        {/* AnyDesk Screen Mirroring or Web VS Code Workspace Frame */}
+        {viewMode === 'anydesk' && session.streamUrl ? (
+          <AnyDeskView streamUrl={session.streamUrl} inputUrl={session.inputUrl || ''} />
+        ) : (
+          <div className="flex-1 flex flex-col bg-[#181818] relative">
+            {session.webUrl ? (
+              <iframe
+                src={session.webUrl}
+                className="w-full h-full border-none"
+                title="Remote Isolated VS Code"
+                allow="clipboard-read; clipboard-write;"
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center space-y-4 p-8 text-center">
+                <Code className="w-16 h-16 text-blue-500 opacity-60 animate-pulse" />
+                <h2 className="text-lg font-bold text-gray-200">Isolated VS Code Workspace Ready</h2>
+                <p className="text-xs text-gray-400 max-w-md">
+                  Dedicated VS Code instance is actively running on {device.name} in complete isolation.
+                  Provider desktop mouse and keyboard are untouched.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Collapsible Side Panel (Files, Terminal, Diagnostics) */}
         {sidePanelOpen && (

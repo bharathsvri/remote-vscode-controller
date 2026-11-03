@@ -55,6 +55,8 @@ export class SessionManager {
       status: 'Active',
       grantedPermissions: decision.grantedPermissions || pending.requestedPermissions,
       webUrl: decision.webUrl,
+      streamUrl: decision.streamUrl,
+      inputUrl: decision.inputUrl,
     };
 
     this.activeSessions.set(decision.sessionId, sessionInfo);
