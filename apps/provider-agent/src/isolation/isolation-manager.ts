@@ -61,10 +61,11 @@ export class IsolationManager {
       }
     }
 
-    // Write / merge user settings
-    const userSettingsDir = path.join(userDataDir, 'User');
-    fs.mkdirSync(userSettingsDir, { recursive: true });
-    const settingsPath = path.join(userSettingsDir, 'settings.json');
+    // Write / merge user settings in both locations used by VS Code Web & Server
+    const userDirs = [
+      path.join(userDataDir, 'User'),
+      path.join(userDataDir, 'data', 'User'),
+    ];
 
     let hostSettings: Record<string, any> = {};
     if (this.isFullAccess) {
@@ -90,11 +91,36 @@ export class IsolationManager {
         'markdown': true,
         'scminput': true,
       },
+      'github.copilot.editor.enableAutoCompletions': true,
       'github.copilot.chat.welcomeMessage': 'never',
       'chat.commandCenter.enabled': true,
     };
 
-    fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+    for (const uDir of userDirs) {
+      fs.mkdirSync(uDir, { recursive: true });
+      fs.writeFileSync(path.join(uDir, 'settings.json'), JSON.stringify(mergedSettings, null, 2), 'utf-8');
+    }
+
+    // Seed globalStorage (account state, database, tokens) if available from host
+    if (this.isFullAccess) {
+      const hostGlobalStorage = path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Code', 'User', 'globalStorage');
+      const targetGlobalStorage = path.join(userDataDir, 'data', 'User', 'globalStorage');
+      fs.mkdirSync(targetGlobalStorage, { recursive: true });
+
+      const filesToSeed = ['state.vscdb', 'storage.json'];
+      for (const f of filesToSeed) {
+        const src = path.join(hostGlobalStorage, f);
+        const dst = path.join(targetGlobalStorage, f);
+        if (fs.existsSync(src) && !fs.existsSync(dst)) {
+          try {
+            fs.copyFileSync(src, dst);
+            console.log(`[IsolationManager] Seeded ${f} from host into remote profile`);
+          } catch (err) {
+            console.warn(`[IsolationManager] Could not seed ${f}:`, err);
+          }
+        }
+      }
+    }
 
     return {
       sessionId,
