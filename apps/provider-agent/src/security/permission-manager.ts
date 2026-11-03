@@ -23,7 +23,8 @@ export class PermissionManager {
       return this.customApprovalHandler(request);
     }
 
-    if (this.autoApprove) {
+    const auto = this.autoApprove || process.env.PROVIDER_AUTO_APPROVE === 'true';
+    if (auto) {
       console.log(`[PermissionManager] Auto-approving session ${request.sessionId} (PROVIDER_AUTO_APPROVE=true)`);
       return {
         sessionId: request.sessionId,

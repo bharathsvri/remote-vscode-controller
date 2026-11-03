@@ -64,13 +64,17 @@ export class VSCodeProcessManager {
     const connectionToken = uuidv4().replace(/-/g, '');
     const context = this.isolationManager.prepareIsolatedEnvironment(sessionId, workspacePath, port, connectionToken);
 
+    const cleanWorkspace = workspacePath.replace(/[/\\]+$/, '');
+    const cleanUserData = context.userDataDir.replace(/[/\\]+$/, '');
+    const quoteIfSpaces = (p: string) => p.includes(' ') ? `"${p}"` : p;
+
     const args = [
       'serve-web',
       '--host', '127.0.0.1',
       '--port', port.toString(),
       '--connection-token', connectionToken,
-      '--server-data-dir', context.userDataDir,
-      '--default-folder', workspacePath,
+      '--server-data-dir', quoteIfSpaces(cleanUserData),
+      '--default-folder', quoteIfSpaces(cleanWorkspace),
       '--accept-server-license-terms',
       '--disable-telemetry',
     ];

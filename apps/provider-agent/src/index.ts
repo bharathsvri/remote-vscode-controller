@@ -5,6 +5,8 @@ import { DEFAULT_PORTS } from '@remote-vscode/shared';
 import { ProviderAgent } from './agent/provider-agent';
 
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const SIGNALING_URL = process.env.PROVIDER_SIGNALING_URL || `ws://localhost:${DEFAULT_PORTS.SIGNALING_SERVER}/ws`;
 const PORT = parseInt(process.env.PROVIDER_PORT || '', 10) || DEFAULT_PORTS.PROVIDER_AGENT;
