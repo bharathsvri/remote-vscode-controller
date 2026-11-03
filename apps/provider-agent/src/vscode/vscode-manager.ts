@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, spawn, spawnSync } from 'child_process';
 import net from 'net';
 import { v4 as uuidv4 } from 'uuid';
 import { IsolationContext, IsolationManager } from '../isolation/isolation-manager';
@@ -86,14 +86,28 @@ export class VSCodeProcessManager {
     console.log(`[VSCodeManager] Spawning dedicated VS Code instance on port ${port} (bound to ${bindHost})...`);
     console.log(`[VSCodeManager] Command: ${vscodeInfo.executablePath} ${args.join(' ')}`);
 
+    // Detect host GitHub token from Git Credential Manager / env
+    const hostGitHubToken = this.detectHostGitHubToken();
+    const envVars: NodeJS.ProcessEnv = {
+      ...process.env,
+    };
+
+    if (hostGitHubToken) {
+      console.log(`[VSCodeManager] Detected host GitHub account. Injecting credentials into VS Code session.`);
+      envVars.GITHUB_TOKEN = hostGitHubToken;
+      envVars.GH_TOKEN = hostGitHubToken;
+      envVars.COPILOT_GITHUB_TOKEN = hostGitHubToken;
+    }
+
+    if (process.env.PROVIDER_FULL_ACCESS === 'false') {
+      envVars.VSCODE_CLI_DATA_DIR = context.sessionDir;
+    }
+
     const child = spawn(vscodeInfo.executablePath, args, {
       shell: true,
       windowsHide: true, // Guarantees no CMD/console window pops up on the Provider desktop
       cwd: workspacePath,
-      env: {
-        ...process.env,
-        VSCODE_CLI_DATA_DIR: context.sessionDir,
-      },
+      env: envVars,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
@@ -193,6 +207,29 @@ export class VSCodeProcessManager {
       }
     }
     throw new Error(`Timed out waiting for VS Code server on port ${port}`);
+  }
+
+  /**
+   * Attempts to discover the host machine's GitHub OAuth token from Git Credential Manager or env
+   */
+  private detectHostGitHubToken(): string | null {
+    if (process.env.COPILOT_GITHUB_TOKEN) return process.env.COPILOT_GITHUB_TOKEN;
+    if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+    if (process.env.GH_TOKEN) return process.env.GH_TOKEN;
+
+    try {
+      const res = spawnSync('git', ['credential', 'fill'], {
+        input: 'protocol=https\nhost=github.com\n\n',
+        encoding: 'utf-8',
+        timeout: 3000,
+        stdio: ['pipe', 'pipe', 'ignore'],
+      });
+      const match = res.stdout?.match(/password=(.+)/);
+      if (match && match[1]?.trim()) {
+        return match[1].trim();
+      }
+    } catch {}
+    return null;
   }
 }
 
