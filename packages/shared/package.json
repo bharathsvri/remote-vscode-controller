@@ -1,0 +1,19 @@
+{
+  "name": "@remote-vscode/shared",
+  "version": "1.0.0",
+  "description": "Shared protocols, interfaces, and constants for Remote VS Code Controller",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "watch": "tsc -b -w",
+    "clean": "rimraf dist",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "rimraf": "^5.0.7",
+    "typescript": "^5.4.5"
+  }
+}

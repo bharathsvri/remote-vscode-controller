@@ -1,0 +1,38 @@
+{
+  "name": "remote-vscode-controller-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remote VS Code Controller Desktop Application & Provider Agent Monorepo",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:shared": "npm run build --workspace=@remote-vscode/shared",
+    "build:signaling": "npm run build --workspace=@remote-vscode/signaling-server",
+    "build:provider": "npm run build --workspace=@remote-vscode/provider-agent",
+    "build:controller": "npm run build --workspace=@remote-vscode/controller-desktop",
+    "start:signaling": "npm run start --workspace=@remote-vscode/signaling-server",
+    "start:provider": "npm run start --workspace=@remote-vscode/provider-agent",
+    "start:controller": "npm run start --workspace=@remote-vscode/controller-desktop",
+    "dev:signaling": "npm run dev --workspace=@remote-vscode/signaling-server",
+    "dev:provider": "npm run dev --workspace=@remote-vscode/provider-agent",
+    "dev:controller": "npm run dev --workspace=@remote-vscode/controller-desktop",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "keywords": [
+    "remote-control",
+    "vscode",
+    "electron",
+    "webrtc",
+    "windows",
+    "process-isolation"
+  ],
+  "author": "Remote VS Code Controller Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

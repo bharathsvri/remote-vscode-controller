@@ -1,0 +1,38 @@
+# Multi-stage Dockerfile for Signaling Server
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package manifests
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/signaling-server/package.json ./apps/signaling-server/
+
+# Install dependencies
+RUN npm ci
+
+# Copy source files
+COPY packages/shared ./packages/shared
+COPY apps/signaling-server ./apps/signaling-server
+
+# Build shared and signaling server
+RUN npm run build:shared && npm run build:signaling
+
+# Production image
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/signaling-server/package.json ./apps/signaling-server/
+
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/apps/signaling-server/dist ./apps/signaling-server/dist
+
+EXPOSE 4000
+
+CMD ["npm", "run", "start:signaling"]
